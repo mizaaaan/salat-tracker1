@@ -104,7 +104,7 @@ function SunArc({ sunT }) {
 
   // SVG arc command: A rx ry x-rot large-arc-flag sweep-flag x y
   // large-arc=1, sweep=0  → counter-clockwise upper arc (goes UP through peak)
-  const d = `M ${LEFT_X} ${BASE_Y} A ${ARC_RX} ${ARC_RY} 0 1 0 ${RIGHT_X} ${BASE_Y}`;
+  const d = `M ${LEFT_X} ${BASE_Y} A ${ARC_RX} ${ARC_RY} 0 0 1 ${RIGHT_X} ${BASE_Y}`;
 
   return (
     <Svg width={ARC_W} height={ARC_H}>
