@@ -10,21 +10,9 @@ import Svg, {
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-// ── Card dimensions — landscape ───────────────────────────────────────────────
-const CARD_W = SCREEN_W - 32;
-const CARD_H = Math.round(CARD_W * 0.62);   // landscape, UNCHANGED
-
-// ── Arc geometry ──────────────────────────────────────────────────────────────
-// KEY IDEA: size arc RADIUS from card HEIGHT → perfect semicircle always fits
-// Subtract fixed elements (topBar ~46 + dots ~20 + padding ~24 + margins ~16)
-const ARC_RX  = CARD_H - 106;               // radius = available height
-const ARC_RY  = ARC_RX;                     // ← EQUAL = 100% perfect semicircle
-const ARC_W   = ARC_RX * 2 + 20;            // arc canvas width (10px margin each side)
-const LEFT_X  = 10;
-const RIGHT_X = ARC_W - 10;
-const ARC_CX  = (LEFT_X + RIGHT_X) / 2;
-const BASE_Y  = ARC_RY + 8;
-const ARC_H   = BASE_Y + 8;
+// ── Landscape card dimensions ─────────────────────────────────────────────────
+const CARD_W = SCREEN_W - 32;           // full width minus small margins
+const CARD_H = Math.round(CARD_W * 0.62); // ~62% of width → landscape 16:10 feel
 
 // ── Prayer background images ──────────────────────────────────────────────────
 const PRAYER_IMAGES = {
@@ -45,13 +33,22 @@ const PRAYER_TINT = {
   Isha:    'rgba(5,   5,  18, 0.38)',
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Arc geometry — flat ellipse to fit landscape card ─────────────────────────
+const ARC_W   = CARD_W - 48;
+const LEFT_X  = 10;
+const RIGHT_X = ARC_W - 10;
+
+const ARC_RX  = (RIGHT_X - LEFT_X) / 2;   // wide horizontal radius
+const ARC_RY  = Math.round(ARC_RX * 0.52); // flattened: only 52% of RX height
+const ARC_CX  = (LEFT_X + RIGHT_X) / 2;
+const BASE_Y  = ARC_RY + 8;
+const ARC_H   = BASE_Y + 8;
+
 function arcPointAt(t) {
   const theta = Math.PI * (1 - t);
-  return {
-    x: ARC_CX + ARC_RX * Math.cos(theta),
-    y: BASE_Y - ARC_RY * Math.sin(theta),
-  };
+  const x = ARC_CX + ARC_RX * Math.cos(theta);
+  const y = BASE_Y - ARC_RY * Math.sin(theta);
+  return { x, y };
 }
 
 function calcSunT(sunriseTime, sunsetTime) {
@@ -95,17 +92,18 @@ function GradientOverlay() {
   );
 }
 
-// ── Perfect semicircle arc + golden sun ───────────────────────────────────────
+// ── Flat ellipse arc + golden sun ─────────────────────────────────────────────
 function SunArc({ sunT }) {
   const sun = arcPointAt(sunT);
-  const d   = `M ${LEFT_X} ${BASE_Y} A ${ARC_RX} ${ARC_RY} 0 0 1 ${RIGHT_X} ${BASE_Y}`;
+  // Large-arc=1, sweep=1 → correct upper ellipse arc
+  const d = `M ${LEFT_X} ${BASE_Y} A ${ARC_RX} ${ARC_RY} 0 0 1 ${RIGHT_X} ${BASE_Y}`;
 
   return (
     <Svg width={ARC_W} height={ARC_H}>
       {/* Glow layers */}
       <Path d={d} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={10} strokeLinecap="round" />
-      <Path d={d} fill="none" stroke="rgba(255,255,255,0.26)" strokeWidth={5}  strokeLinecap="round" />
-      <Path d={d} fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth={2}  strokeLinecap="round" />
+      <Path d={d} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={5}  strokeLinecap="round" />
+      <Path d={d} fill="none" stroke="rgba(255,255,255,0.90)" strokeWidth={2}  strokeLinecap="round" />
 
       {/* Endpoint dots */}
       <Circle cx={LEFT_X}  cy={BASE_Y} r={6}   fill="rgba(255,255,255,0.18)" />
@@ -139,8 +137,14 @@ function PageDots({ prayerName }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function NextPrayerBanner({
-  name, time, countdown, hijriDate,
-  location, sunriseTime, maghribTime, onLocationPress,
+  name,
+  time,
+  countdown,
+  hijriDate,
+  location,
+  sunriseTime,
+  maghribTime,
+  onLocationPress,
 }) {
   const bgImage  = PRAYER_IMAGES[name] ?? PRAYER_IMAGES.Fajr;
   const tint     = PRAYER_TINT[name]   ?? PRAYER_TINT.Fajr;
@@ -149,7 +153,10 @@ export default function NextPrayerBanner({
   const [sunT, setSunT] = useState(() => calcSunT(sunriseTime, maghribTime));
   useEffect(() => {
     setSunT(calcSunT(sunriseTime, maghribTime));
-    const id = setInterval(() => setSunT(calcSunT(sunriseTime, maghribTime)), 60_000);
+    const id = setInterval(
+      () => setSunT(calcSunT(sunriseTime, maghribTime)),
+      60_000
+    );
     return () => clearInterval(id);
   }, [sunriseTime, maghribTime]);
 
@@ -157,29 +164,47 @@ export default function NextPrayerBanner({
     <View style={styles.shadow}>
       <View style={styles.card}>
 
-        <Image source={bgImage} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        {/* Background image — landscape fill */}
+        <Image
+          source={bgImage}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+
+        {/* Mood tint */}
         <View style={[StyleSheet.absoluteFill, { backgroundColor: tint }]} />
+
+        {/* Gradient */}
         <GradientOverlay />
 
+        {/* ══ CONTENT ══════════════════════════════════════════════════════ */}
         <View style={styles.overlay}>
 
           {/* Top bar */}
           <View style={styles.topRow}>
-            <TouchableOpacity style={styles.locationPill} onPress={onLocationPress} activeOpacity={0.75}>
+            <TouchableOpacity
+              style={styles.locationPill}
+              onPress={onLocationPress}
+              activeOpacity={0.75}
+            >
               <Text style={styles.locationIcon}>🌐</Text>
               <Text style={styles.locationLabel}>{locLabel}</Text>
             </TouchableOpacity>
             <Text style={styles.hijriDate}>{hijriDate}</Text>
           </View>
 
-          {/* Flex spacer — pushes arc to bottom half */}
+          {/* Small spacer */}
           <View style={{ flex: 1 }} />
 
-          {/* Arc + Info — arc is sized to be perfect semicircle inside landscape card */}
+          {/* ── Arc + Info block ──────────────────────────────────────────── */}
           <View style={styles.arcContainer}>
-            <SunArc sunT={sunT} />
 
-            {/* Prayer info inside the arc */}
+            {/* Flat arc SVG */}
+            <View style={styles.arcWrap}>
+              <SunArc sunT={sunT} />
+            </View>
+
+            {/* Prayer info INSIDE the arc — absolutely positioned */}
             <View style={styles.arcInfoOverlay}>
               <Text style={styles.prayerName}>{name}</Text>
               <Text style={styles.bigTime}>{time}</Text>
@@ -187,13 +212,15 @@ export default function NextPrayerBanner({
                 will start in {naturalCountdown(countdown)}
               </Text>
             </View>
+
           </View>
 
           {/* Page dots */}
           <PageDots prayerName={name} />
-          <View style={{ height: 10 }} />
 
+          <View style={{ height: 10 }} />
         </View>
+
       </View>
     </View>
   );
@@ -213,7 +240,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 20,
     overflow:     'hidden',
-    height:       CARD_H,   // landscape height, unchanged
+    height:       CARD_H,   // ← landscape height (62% of card width)
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -244,22 +271,27 @@ const styles = StyleSheet.create({
   locationLabel: { color: '#fff', fontSize: 12, fontWeight: '600' },
   hijriDate:     { color: '#fff', fontSize: 12, fontWeight: '700' },
 
-  // Arc container — centered, sized by height not width
+  // Arc container
   arcContainer: {
-    alignItems: 'center',
+    width:      '100%',
     position:   'relative',
-    width:      ARC_W,      // smaller than card width → perfect semicircle fits
+    alignItems: 'center',
+  },
+  arcWrap: {
+    alignItems: 'center',
+    width:      '100%',
   },
 
-  // Prayer info inside arc — absolute
+  // Prayer info INSIDE arc — absolutely placed
   arcInfoOverlay: {
     position:   'absolute',
-    bottom:     18,
+    bottom:     16,
     left:       0,
     right:      0,
     alignItems: 'center',
   },
 
+  // Prayer name
   prayerName: {
     color:         'rgba(255,255,255,0.88)',
     fontSize:      13,
@@ -268,20 +300,24 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom:  1,
   },
+
+  // Big time
   bigTime: {
     color:            '#fff',
-    fontSize:         30,
+    fontSize:         32,
     fontWeight:       '700',
     letterSpacing:    1,
-    lineHeight:       36,
+    lineHeight:       38,
     textShadowColor:  'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,
     marginBottom:     1,
   },
+
+  // Countdown
   countdown: {
     color:         'rgba(255,255,255,0.75)',
-    fontSize:      11,
+    fontSize:      12,
     letterSpacing: 0.2,
   },
 
