@@ -33,13 +33,13 @@ const PRAYER_TINT = {
   Isha:    'rgba(5,   5,  18, 0.38)',
 };
 
-// ── Arc geometry — flat ellipse to fit landscape card ─────────────────────────
+// ── Arc geometry — true semicircle (D-shape), equal radii ─────────────────────
 const ARC_W   = CARD_W - 48;
 const LEFT_X  = 10;
 const RIGHT_X = ARC_W - 10;
 
-const ARC_RX  = (RIGHT_X - LEFT_X) / 2;   // wide horizontal radius
-const ARC_RY  = Math.round(ARC_RX * 0.52); // flattened: only 52% of RX height
+const ARC_RX  = (RIGHT_X - LEFT_X) / 2;   // horizontal radius
+const ARC_RY  = ARC_RX;                   // equal radii → true circle, not an ellipse
 const ARC_CX  = (LEFT_X + RIGHT_X) / 2;
 const BASE_Y  = ARC_RY + 8;
 const ARC_H   = BASE_Y + 8;
