@@ -108,18 +108,18 @@ function SunArc({ sunT }) {
 
   return (
     <Svg width={ARC_W} height={ARC_H}>
-      {/* Arc stroke */}
-      <Path
-        d={d}
-        fill="none"
-        stroke="rgba(255,255,255,0.52)"
-        strokeWidth={1.8}
-        strokeLinecap="round"
-      />
+      {/* Outer glow - wide soft halo */}
+      <Path d={d} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={10} strokeLinecap="round" />
+      {/* Mid glow */}
+      <Path d={d} fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth={5} strokeLinecap="round" />
+      {/* Core arc line - bright, clearly visible */}
+      <Path d={d} fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth={2.2} strokeLinecap="round" />
 
-      {/* End-point dots */}
-      <Circle cx={LEFT_X}  cy={BASE_Y} r={4.5} fill="rgba(255,255,255,0.42)" />
-      <Circle cx={RIGHT_X} cy={BASE_Y} r={4.5} fill="rgba(255,255,255,0.42)" />
+      {/* End-point dots - larger and bright */}
+      <Circle cx={LEFT_X}  cy={BASE_Y} r={7}   fill="rgba(255,255,255,0.18)" />
+      <Circle cx={LEFT_X}  cy={BASE_Y} r={4.5} fill="rgba(255,255,255,0.75)" />
+      <Circle cx={RIGHT_X} cy={BASE_Y} r={7}   fill="rgba(255,255,255,0.18)" />
+      <Circle cx={RIGHT_X} cy={BASE_Y} r={4.5} fill="rgba(255,255,255,0.75)" />
 
       {/* ── Layered golden sun moving along the arc ── */}
       {/* Outermost soft glow */}
