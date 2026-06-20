@@ -33,18 +33,22 @@ const PRAYER_TINT = {
 };
 
 // ── Arc geometry constants ───────────────────────────────────────────────────
-const ARC_W   = CARD_W - 48;
-const ARC_H   = 110;
-const PEAK_Y  = 16;
-const BASE_Y  = ARC_H - 12;
-const LEFT_X  = 14;
-const RIGHT_X = ARC_W - 14;
-const CTRL_X  = ARC_W / 2;
+const ARC_W   = CARD_W - 40;
+const LEFT_X  = 10;
+const RIGHT_X = ARC_W - 10;
 
-// Quadratic bezier point at t (0=left end, 0.5=peak, 1=right end)
-function bezierAt(t) {
-  const x = (1-t)*(1-t)*LEFT_X  + 2*(1-t)*t*CTRL_X + t*t*RIGHT_X;
-  const y = (1-t)*(1-t)*BASE_Y  + 2*(1-t)*t*PEAK_Y  + t*t*BASE_Y;
+// True semi-ellipse: rx = half the width, ry controls height of curve
+const ARC_RX  = (RIGHT_X - LEFT_X) / 2;   // horizontal radius
+const ARC_RY  = ARC_RX * 0.62;            // vertical radius  (0.62 ≈ nice half-circle feel)
+const ARC_CX  = (LEFT_X + RIGHT_X) / 2;   // ellipse centre X
+const BASE_Y  = ARC_RY + 12;              // y of both endpoints
+const ARC_H   = BASE_Y + 12;              // SVG canvas height
+
+// Point on the ellipse at t ∈ [0,1]:  t=0 → left end, t=0.5 → top, t=1 → right end
+function arcPointAt(t) {
+  const theta = Math.PI * (1 - t);        // π → 0  as t goes 0 → 1
+  const x = ARC_CX + ARC_RX * Math.cos(theta);
+  const y = BASE_Y - ARC_RY * Math.sin(theta);  // sin > 0 for θ∈(0,π) → y goes up
   return { x, y };
 }
 
@@ -96,35 +100,38 @@ function GradientOverlay() {
 
 // ── Arc + layered golden sun ─────────────────────────────────────────────────
 function SunArc({ sunT }) {
-  const sun = bezierAt(sunT);
-  const d   = `M ${LEFT_X} ${BASE_Y} Q ${CTRL_X} ${PEAK_Y} ${RIGHT_X} ${BASE_Y}`;
+  const sun = arcPointAt(sunT);
+
+  // SVG arc command: A rx ry x-rot large-arc-flag sweep-flag x y
+  // large-arc=1, sweep=0  → counter-clockwise upper arc (goes UP through peak)
+  const d = `M ${LEFT_X} ${BASE_Y} A ${ARC_RX} ${ARC_RY} 0 1 0 ${RIGHT_X} ${BASE_Y}`;
 
   return (
     <Svg width={ARC_W} height={ARC_H}>
-      {/* Arc line */}
+      {/* Arc stroke */}
       <Path
         d={d}
         fill="none"
-        stroke="rgba(255,255,255,0.48)"
+        stroke="rgba(255,255,255,0.52)"
         strokeWidth={1.8}
         strokeLinecap="round"
       />
 
       {/* End-point dots */}
-      <Circle cx={LEFT_X}  cy={BASE_Y} r={4} fill="rgba(255,255,255,0.38)" />
-      <Circle cx={RIGHT_X} cy={BASE_Y} r={4} fill="rgba(255,255,255,0.38)" />
+      <Circle cx={LEFT_X}  cy={BASE_Y} r={4.5} fill="rgba(255,255,255,0.42)" />
+      <Circle cx={RIGHT_X} cy={BASE_Y} r={4.5} fill="rgba(255,255,255,0.42)" />
 
-      {/* ── Layered golden sun ── */}
-      {/* Outer glow */}
-      <Circle cx={sun.x} cy={sun.y} r={19} fill="rgba(255,200,0,0.16)" />
+      {/* ── Layered golden sun moving along the arc ── */}
+      {/* Outermost soft glow */}
+      <Circle cx={sun.x} cy={sun.y} r={22} fill="rgba(255,200,0,0.12)" />
       {/* Mid glow */}
-      <Circle cx={sun.x} cy={sun.y} r={13} fill="rgba(255,195,0,0.28)" />
+      <Circle cx={sun.x} cy={sun.y} r={15} fill="rgba(255,195,0,0.24)" />
       {/* Sun body */}
-      <Circle cx={sun.x} cy={sun.y} r={9}  fill="#FFC107" />
-      {/* Bright inner */}
-      <Circle cx={sun.x} cy={sun.y} r={5.5} fill="#FFE566" />
-      {/* White core */}
-      <Circle cx={sun.x} cy={sun.y} r={2.5} fill="#FFFDE7" />
+      <Circle cx={sun.x} cy={sun.y} r={10} fill="#FFC107" />
+      {/* Bright inner ring */}
+      <Circle cx={sun.x} cy={sun.y} r={6.5} fill="#FFE566" />
+      {/* White hot core */}
+      <Circle cx={sun.x} cy={sun.y} r={3}   fill="#FFFDE7" />
     </Svg>
   );
 }
