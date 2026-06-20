@@ -22,7 +22,6 @@ const PRAYER_IMAGES = {
   Isha:    require('../../assets/prayers/isha.png'),
 };
 
-// Mood tint per prayer — lighter opacity so the image shows through more
 const PRAYER_TINT = {
   Fajr:    'rgba(5,  15,  55, 0.28)',
   Sunrise: 'rgba(90, 35,   0, 0.22)',
@@ -37,37 +36,31 @@ const ARC_W   = CARD_W - 40;
 const LEFT_X  = 10;
 const RIGHT_X = ARC_W - 10;
 
-// True semi-ellipse: rx = half the width, ry controls height of curve
-const ARC_RX  = (RIGHT_X - LEFT_X) / 2;   // horizontal radius
-const ARC_RY  = ARC_RX;                   // vertical radius = horizontal → perfect semicircle
-const ARC_CX  = (LEFT_X + RIGHT_X) / 2;   // ellipse centre X
-const BASE_Y  = ARC_RY + 12;              // y of both endpoints
-const ARC_H   = BASE_Y + 12;              // SVG canvas height
+const ARC_RX  = (RIGHT_X - LEFT_X) / 2;
+const ARC_RY  = ARC_RX;
+const ARC_CX  = (LEFT_X + RIGHT_X) / 2;
+const BASE_Y  = ARC_RY + 12;
+const ARC_H   = BASE_Y + 12;
 
-// Point on the ellipse at t ∈ [0,1]:  t=0 → left end, t=0.5 → top, t=1 → right end
 function arcPointAt(t) {
-  const theta = Math.PI * (1 - t);        // π → 0  as t goes 0 → 1
+  const theta = Math.PI * (1 - t);
   const x = ARC_CX + ARC_RX * Math.cos(theta);
-  const y = BASE_Y - ARC_RY * Math.sin(theta);  // sin > 0 for θ∈(0,π) → y goes up
+  const y = BASE_Y - ARC_RY * Math.sin(theta);
   return { x, y };
 }
 
-// Sun's t value: 0=sunrise (left), 0.5=noon (peak/top), 1=sunset (right)
 function calcSunT(sunriseTime, sunsetTime) {
   const now = new Date();
-
   const rise = (sunriseTime instanceof Date) ? sunriseTime : (() => {
     const d = new Date(); d.setHours(6, 0, 0, 0); return d;
   })();
   const set = (sunsetTime instanceof Date) ? sunsetTime : (() => {
     const d = new Date(); d.setHours(19, 0, 0, 0); return d;
   })();
-
   const t = (now - rise) / (set - rise);
   return Math.max(0.03, Math.min(0.97, t));
 }
 
-// ── Countdown to natural language ────────────────────────────────────────────
 function naturalCountdown(cd) {
   const [h, m, s] = (cd || '00:00:00').split(':').map(Number);
   if (h > 0 && m > 0) return `${h} hour${h !== 1 ? 's' : ''} ${m} minute${m !== 1 ? 's' : ''}`;
@@ -76,7 +69,6 @@ function naturalCountdown(cd) {
   return `${s} second${s !== 1 ? 's' : ''}`;
 }
 
-// ── SVG gradient overlay: transparent top → dark bottom ─────────────────────
 function GradientOverlay() {
   return (
     <Svg
@@ -98,45 +90,33 @@ function GradientOverlay() {
   );
 }
 
-// ── Arc + layered golden sun ─────────────────────────────────────────────────
 function SunArc({ sunT }) {
   const sun = arcPointAt(sunT);
-
-  // SVG arc command: A rx ry x-rot large-arc-flag sweep-flag x y
-  // large-arc=1, sweep=0  → counter-clockwise upper arc (goes UP through peak)
   const d = `M ${LEFT_X} ${BASE_Y} A ${ARC_RX} ${ARC_RY} 0 0 1 ${RIGHT_X} ${BASE_Y}`;
 
   return (
     <Svg width={ARC_W} height={ARC_H}>
-      {/* Outer glow - wide soft halo */}
+      {/* Glow layers */}
       <Path d={d} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={10} strokeLinecap="round" />
-      {/* Mid glow */}
-      <Path d={d} fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth={5} strokeLinecap="round" />
-      {/* Core arc line - bright, clearly visible */}
+      <Path d={d} fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth={5}  strokeLinecap="round" />
       <Path d={d} fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth={2.2} strokeLinecap="round" />
 
-      {/* End-point dots - larger and bright */}
+      {/* Endpoint dots */}
       <Circle cx={LEFT_X}  cy={BASE_Y} r={7}   fill="rgba(255,255,255,0.18)" />
       <Circle cx={LEFT_X}  cy={BASE_Y} r={4.5} fill="rgba(255,255,255,0.75)" />
       <Circle cx={RIGHT_X} cy={BASE_Y} r={7}   fill="rgba(255,255,255,0.18)" />
       <Circle cx={RIGHT_X} cy={BASE_Y} r={4.5} fill="rgba(255,255,255,0.75)" />
 
-      {/* ── Layered golden sun moving along the arc ── */}
-      {/* Outermost soft glow */}
-      <Circle cx={sun.x} cy={sun.y} r={22} fill="rgba(255,200,0,0.12)" />
-      {/* Mid glow */}
-      <Circle cx={sun.x} cy={sun.y} r={15} fill="rgba(255,195,0,0.24)" />
-      {/* Sun body */}
-      <Circle cx={sun.x} cy={sun.y} r={10} fill="#FFC107" />
-      {/* Bright inner ring */}
+      {/* Layered golden sun */}
+      <Circle cx={sun.x} cy={sun.y} r={22}  fill="rgba(255,200,0,0.12)" />
+      <Circle cx={sun.x} cy={sun.y} r={15}  fill="rgba(255,195,0,0.24)" />
+      <Circle cx={sun.x} cy={sun.y} r={10}  fill="#FFC107" />
       <Circle cx={sun.x} cy={sun.y} r={6.5} fill="#FFE566" />
-      {/* White hot core */}
       <Circle cx={sun.x} cy={sun.y} r={3}   fill="#FFFDE7" />
     </Svg>
   );
 }
 
-// ── Page indicator dots ───────────────────────────────────────────────────────
 const TRACKABLE = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
 function PageDots({ prayerName }) {
@@ -151,17 +131,6 @@ function PageDots({ prayerName }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-/**
- * Props:
- *   name          – 'Fajr' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha'
- *   time          – pre-formatted 12hr string e.g. '3:15 PM'   (kept as-is)
- *   countdown     – 'HH:MM:SS' string
- *   hijriDate     – e.g. '3 Muharram 1448 AH'
- *   location      – city name string, defaults to 'Local'
- *   sunriseTime   – Date object (Sunrise prayer) for sun position on arc
- *   maghribTime   – Date object (Maghrib prayer) used as sunset proxy
- *   onLocationPress – () => void
- */
 export default function NextPrayerBanner({
   name,
   time,
@@ -176,7 +145,6 @@ export default function NextPrayerBanner({
   const tint     = PRAYER_TINT[name]   ?? PRAYER_TINT.Fajr;
   const locLabel = location || 'Local';
 
-  // Recompute sun position once per minute
   const [sunT, setSunT] = useState(() => calcSunT(sunriseTime, maghribTime));
   useEffect(() => {
     setSunT(calcSunT(sunriseTime, maghribTime));
@@ -191,17 +159,17 @@ export default function NextPrayerBanner({
     <View style={styles.shadow}>
       <View style={styles.card}>
 
-        {/* Background image — landscape/cover fill */}
+        {/* Background image */}
         <Image
           source={bgImage}
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
         />
 
-        {/* Mood colour tint (lighter than before) */}
+        {/* Mood tint */}
         <View style={[StyleSheet.absoluteFill, { backgroundColor: tint }]} />
 
-        {/* SVG gradient: transparent top → dark bottom */}
+        {/* Gradient overlay */}
         <GradientOverlay />
 
         {/* ══ CONTENT ══════════════════════════════════════════════════════ */}
@@ -220,24 +188,30 @@ export default function NextPrayerBanner({
             <Text style={styles.hijriDate}>{hijriDate}</Text>
           </View>
 
-          {/* Push prayer info to lower half */}
+          {/* Spacer — pushes arc block to lower half */}
           <View style={{ flex: 1 }} />
 
-          {/* Arc with moving golden sun — hero element */}
-          <View style={styles.arcWrap}>
-            <SunArc sunT={sunT} />
+          {/* ── Arc + Info block ─────────────────────────────────────────── */}
+          {/* The arc SVG and prayer text share the same container.           */}
+          {/* arcInfoOverlay is absolutely positioned INSIDE the arc.         */}
+          <View style={styles.arcContainer}>
+
+            {/* Arc SVG drawn first (behind the text) */}
+            <View style={styles.arcWrap}>
+              <SunArc sunT={sunT} />
+            </View>
+
+            {/* Prayer info sits inside the arc via absolute positioning */}
+            <View style={styles.arcInfoOverlay}>
+              <Text style={styles.prayerName}>{name}</Text>
+              <Text style={styles.bigTime}>{time}</Text>
+              <Text style={styles.countdown}>
+                will start in {naturalCountdown(countdown)}
+              </Text>
+            </View>
+
           </View>
-
-          {/* Prayer name */}
-          <Text style={styles.prayerName}>{name}</Text>
-
-          {/* 12hr time — smaller, sits under the arc */}
-          <Text style={styles.bigTime}>{time}</Text>
-
-          {/* Countdown */}
-          <Text style={styles.countdown}>
-            will start in {naturalCountdown(countdown)}
-          </Text>
+          {/* ─────────────────────────────────────────────────────────────── */}
 
           {/* Page dots */}
           <PageDots prayerName={name} />
@@ -295,7 +269,27 @@ const styles = StyleSheet.create({
   locationLabel: { color: '#fff', fontSize: 13, fontWeight: '600' },
   hijriDate:     { color: '#fff', fontSize: 14, fontWeight: '700' },
 
-  // Prayer name (spaced, uppercase)
+  // ── Arc container: holds both the SVG and the text overlay ──────────────
+  arcContainer: {
+    width:    '100%',
+    position: 'relative',     // anchor for the absolute text overlay
+    alignItems: 'center',
+  },
+  arcWrap: {
+    alignItems: 'center',
+    width:      '100%',
+  },
+
+  // Prayer info absolutely placed INSIDE the arc
+  arcInfoOverlay: {
+    position: 'absolute',
+    bottom:   22,             // sits above the arc baseline, inside the dome
+    left:     0,
+    right:    0,
+    alignItems: 'center',
+  },
+
+  // Prayer name
   prayerName: {
     color:         'rgba(255,255,255,0.88)',
     fontSize:      17,
@@ -305,7 +299,7 @@ const styles = StyleSheet.create({
     marginBottom:  2,
   },
 
-  // Big 12hr time — kept in 12hr as requested
+  // Big time
   bigTime: {
     color:            '#fff',
     fontSize:         40,
@@ -318,6 +312,7 @@ const styles = StyleSheet.create({
     marginBottom:     2,
   },
 
+  // Countdown
   countdown: {
     color:         'rgba(255,255,255,0.75)',
     fontSize:      14,
@@ -325,17 +320,12 @@ const styles = StyleSheet.create({
     marginBottom:  2,
   },
 
-  arcWrap: {
-    alignItems: 'center',
-    width:      '100%',
-    marginTop:  8,
-  },
-
+  // Page dots
   dotsRow: {
-    flexDirection: 'row',
-    gap:           6,
-    justifyContent:'center',
-    marginTop:     2,
+    flexDirection:  'row',
+    gap:            6,
+    justifyContent: 'center',
+    marginTop:      6,
   },
   dot:    { height: 6, borderRadius: 3 },
   dotOn:  { width: 20, backgroundColor: 'rgba(255,255,255,0.90)' },
