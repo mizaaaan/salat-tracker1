@@ -51,15 +51,82 @@ function arcPointAt(t) {
   return { x, y };
 }
 
-function calcSunT(sunriseTime, sunsetTime) {
-  const now  = new Date();
-  const rise = (sunriseTime instanceof Date) ? sunriseTime : (() => {
-    const d = new Date(); d.setHours(6, 0, 0, 0); return d;
+// ── Day/night arc progress ─────────────────────────────────────────────────
+// Day:   Fajr  -> Maghrib  → sun travels the arc
+// Night: Maghrib -> next Fajr → moon travels the SAME arc
+function calcArcState(fajrTime, maghribTime, nextFajrTime) {
+  const now = new Date();
+
+  const fajr = (fajrTime instanceof Date) ? fajrTime : (() => {
+    const d = new Date(); d.setHours(5, 0, 0, 0); return d;
   })();
-  const set  = (sunsetTime  instanceof Date) ? sunsetTime  : (() => {
+  const maghrib = (maghribTime instanceof Date) ? maghribTime : (() => {
     const d = new Date(); d.setHours(19, 0, 0, 0); return d;
   })();
-  return Math.max(0.03, Math.min(0.97, (now - rise) / (set - rise)));
+  const nextFajr = (nextFajrTime instanceof Date) ? nextFajrTime : (() => {
+    const d = new Date(fajr); d.setDate(d.getDate() + 1); return d;
+  })();
+
+  if (now >= fajr && now < maghrib) {
+    // Daytime
+    const t = (now - fajr) / (maghrib - fajr);
+    return { isDay: true, t: Math.max(0.03, Math.min(0.97, t)) };
+  }
+
+  // Nighttime — handle the two cases: tonight (after Maghrib) and
+  // the tail end of last night (after midnight, before today's Fajr).
+  let windowStart = maghrib;
+  let windowEnd   = nextFajr;
+
+  if (now < fajr) {
+    // Still in the previous night's window — approximate "yesterday's
+    // Maghrib" using tonight's Maghrib→Fajr duration as a proxy
+    // (night length barely shifts day to day).
+    windowEnd   = fajr;
+    windowStart = new Date(fajr.getTime() - (nextFajr - maghrib));
+  }
+
+  const t = (now - windowStart) / (windowEnd - windowStart);
+  return { isDay: false, t: Math.max(0.03, Math.min(0.97, t)) };
+}
+
+// ── Real moon phase for tonight, no external API ─────────────────────────────
+// Returns p in [0, 1): 0 = new moon, 0.25 = first quarter,
+// 0.5 = full moon, 0.75 = last quarter.
+function getMoonPhaseFraction(date = new Date()) {
+  const synodicMonth = 29.53058867; // days
+  const knownNewMoon  = Date.UTC(2000, 0, 6, 18, 14, 0);
+  const diffDays = (date.getTime() - knownNewMoon) / 86400000;
+  let phase = (diffDays % synodicMonth) / synodicMonth;
+  if (phase < 0) phase += 1;
+  return phase;
+}
+
+function getMoonPhaseName(p) {
+  if (p < 0.03 || p > 0.97) return 'New Moon';
+  if (p < 0.22) return 'Waxing Crescent';
+  if (p < 0.28) return 'First Quarter';
+  if (p < 0.47) return 'Waxing Gibbous';
+  if (p < 0.53) return 'Full Moon';
+  if (p < 0.72) return 'Waning Gibbous';
+  if (p < 0.78) return 'Last Quarter';
+  return 'Waning Crescent';
+}
+
+// Builds the SVG path for the moon's *lit* sliver at phase p, radius r,
+// centered at (cx, cy). Draw a full dark disc first, then this on top.
+function buildMoonPath(cx, cy, r, p) {
+  const theta = p * 2 * Math.PI;
+  const rx = r * Math.cos(theta); // signed horizontal radius of terminator ellipse
+  const outerSweep       = p < 0.5 ? 1 : 0;
+  const terminatorSweep  = (p < 0.25 || p > 0.75) ? 1 : 0;
+
+  return [
+    `M ${cx} ${cy - r}`,
+    `A ${r} ${r} 0 0 ${outerSweep} ${cx} ${cy + r}`,
+    `A ${Math.abs(rx)} ${r} 0 0 ${terminatorSweep} ${cx} ${cy - r}`,
+    'Z',
+  ].join(' ');
 }
 
 function naturalCountdown(cd) {
@@ -92,31 +159,45 @@ function GradientOverlay() {
   );
 }
 
-// ── Flat ellipse arc + golden sun ─────────────────────────────────────────────
-function SunArc({ sunT }) {
-  const sun = arcPointAt(sunT);
+// ── Flat ellipse arc + sun (day) / moon (night) ───────────────────────────────
+function CelestialArc({ isDay, t, moonPhase }) {
+  const body = arcPointAt(t);
   // Large-arc=1, sweep=1 → correct upper ellipse arc
   const d = `M ${LEFT_X} ${BASE_Y} A ${ARC_RX} ${ARC_RY} 0 0 1 ${RIGHT_X} ${BASE_Y}`;
+
+  const strokeColor = isDay ? 'rgba(255,255,255' : 'rgba(170,185,235';
 
   return (
     <Svg width={ARC_W} height={ARC_H}>
       {/* Glow layers */}
-      <Path d={d} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={10} strokeLinecap="round" />
-      <Path d={d} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth={5}  strokeLinecap="round" />
-      <Path d={d} fill="none" stroke="rgba(255,255,255,0.90)" strokeWidth={2}  strokeLinecap="round" />
+      <Path d={d} fill="none" stroke={`${strokeColor},0.12)`} strokeWidth={10} strokeLinecap="round" />
+      <Path d={d} fill="none" stroke={`${strokeColor},0.25)`} strokeWidth={5}  strokeLinecap="round" />
+      <Path d={d} fill="none" stroke={`${strokeColor},0.90)`} strokeWidth={2}  strokeLinecap="round" />
 
       {/* Endpoint dots */}
-      <Circle cx={LEFT_X}  cy={BASE_Y} r={6}   fill="rgba(255,255,255,0.18)" />
-      <Circle cx={LEFT_X}  cy={BASE_Y} r={4}   fill="rgba(255,255,255,0.75)" />
-      <Circle cx={RIGHT_X} cy={BASE_Y} r={6}   fill="rgba(255,255,255,0.18)" />
-      <Circle cx={RIGHT_X} cy={BASE_Y} r={4}   fill="rgba(255,255,255,0.75)" />
+      <Circle cx={LEFT_X}  cy={BASE_Y} r={6}   fill={`${strokeColor},0.18)`} />
+      <Circle cx={LEFT_X}  cy={BASE_Y} r={4}   fill={`${strokeColor},0.75)`} />
+      <Circle cx={RIGHT_X} cy={BASE_Y} r={6}   fill={`${strokeColor},0.18)`} />
+      <Circle cx={RIGHT_X} cy={BASE_Y} r={4}   fill={`${strokeColor},0.75)`} />
 
-      {/* Layered golden sun */}
-      <Circle cx={sun.x} cy={sun.y} r={18}  fill="rgba(255,200,0,0.12)" />
-      <Circle cx={sun.x} cy={sun.y} r={12}  fill="rgba(255,195,0,0.24)" />
-      <Circle cx={sun.x} cy={sun.y} r={8}   fill="#FFC107" />
-      <Circle cx={sun.x} cy={sun.y} r={5}   fill="#FFE566" />
-      <Circle cx={sun.x} cy={sun.y} r={2.5} fill="#FFFDE7" />
+      {isDay ? (
+        // ── Sun ──
+        <>
+          <Circle cx={body.x} cy={body.y} r={18}  fill="rgba(255,200,0,0.12)" />
+          <Circle cx={body.x} cy={body.y} r={12}  fill="rgba(255,195,0,0.24)" />
+          <Circle cx={body.x} cy={body.y} r={8}   fill="#FFC107" />
+          <Circle cx={body.x} cy={body.y} r={5}   fill="#FFE566" />
+          <Circle cx={body.x} cy={body.y} r={2.5} fill="#FFFDE7" />
+        </>
+      ) : (
+        // ── Moon — real phase for tonight ──
+        <>
+          <Circle cx={body.x} cy={body.y} r={16}  fill="rgba(190,205,245,0.10)" />
+          <Circle cx={body.x} cy={body.y} r={11}  fill="rgba(190,205,245,0.18)" />
+          <Circle cx={body.x} cy={body.y} r={8}   fill="#3A4368" />
+          <Path d={buildMoonPath(body.x, body.y, 8, moonPhase)} fill="#F4F1E8" />
+        </>
+      )}
     </Svg>
   );
 }
@@ -141,24 +222,28 @@ export default function NextPrayerBanner({
   time,
   countdown,
   hijriDate,
+  gregorianDate,
   location,
-  sunriseTime,
+  fajrTime,
   maghribTime,
+  nextFajrTime,
   onLocationPress,
 }) {
   const bgImage  = PRAYER_IMAGES[name] ?? PRAYER_IMAGES.Fajr;
   const tint     = PRAYER_TINT[name]   ?? PRAYER_TINT.Fajr;
   const locLabel = location || 'Local';
 
-  const [sunT, setSunT] = useState(() => calcSunT(sunriseTime, maghribTime));
+  const [arc, setArc] = useState(() => calcArcState(fajrTime, maghribTime, nextFajrTime));
   useEffect(() => {
-    setSunT(calcSunT(sunriseTime, maghribTime));
+    setArc(calcArcState(fajrTime, maghribTime, nextFajrTime));
     const id = setInterval(
-      () => setSunT(calcSunT(sunriseTime, maghribTime)),
+      () => setArc(calcArcState(fajrTime, maghribTime, nextFajrTime)),
       60_000
     );
     return () => clearInterval(id);
-  }, [sunriseTime, maghribTime]);
+  }, [fajrTime, maghribTime, nextFajrTime]);
+
+  const moonPhase = arc.isDay ? 0 : getMoonPhaseFraction(new Date());
 
   return (
     <View style={styles.shadow}>
@@ -190,7 +275,7 @@ export default function NextPrayerBanner({
               <Text style={styles.locationIcon}>🌐</Text>
               <Text style={styles.locationLabel}>{locLabel}</Text>
             </TouchableOpacity>
-            <Text style={styles.hijriDate}>{hijriDate}</Text>
+            <Text style={styles.topDate}>{gregorianDate}</Text>
           </View>
 
           {/* Small spacer */}
@@ -201,11 +286,12 @@ export default function NextPrayerBanner({
 
             {/* Flat arc SVG */}
             <View style={styles.arcWrap}>
-              <SunArc sunT={sunT} />
+              <CelestialArc isDay={arc.isDay} t={arc.t} moonPhase={moonPhase} />
             </View>
 
             {/* Prayer info INSIDE the arc — absolutely positioned */}
             <View style={styles.arcInfoOverlay}>
+              <Text style={styles.hijriDate}>{hijriDate}</Text>
               <Text style={styles.prayerName}>{name}</Text>
               <Text style={styles.bigTime}>{time}</Text>
               <Text style={styles.countdown}>
@@ -269,7 +355,14 @@ const styles = StyleSheet.create({
   },
   locationIcon:  { fontSize: 12 },
   locationLabel: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  hijriDate:     { color: '#fff', fontSize: 12, fontWeight: '700' },
+  topDate:       { color: '#fff', fontSize: 12, fontWeight: '700' },
+  hijriDate:     {
+    color:         'rgba(255,255,255,0.65)',
+    fontSize:      11,
+    fontWeight:    '600',
+    letterSpacing: 0.5,
+    marginBottom:  4,
+  },
 
   // Arc container
   arcContainer: {

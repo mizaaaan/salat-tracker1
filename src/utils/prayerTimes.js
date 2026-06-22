@@ -43,16 +43,39 @@ export const calculateQibla = (latitude, longitude) => {
 
 /**
  * Finds the next upcoming prayer after now.
- * Returns { name, time } or null if all prayers have passed.
+ * If every prayer for today has already passed (i.e. it's after Isha),
+ * rolls over and returns tomorrow's Fajr — provided latitude/longitude
+ * are passed in so tomorrow's times can be calculated.
+ * Returns { name, time } or null if it can't be determined.
  */
-export const getNextPrayer = (prayerTimes) => {
+export const getNextPrayer = (prayerTimes, latitude, longitude) => {
   const now = new Date();
   for (const name of ALL_PRAYERS) {
     if (prayerTimes[name] && prayerTimes[name] > now) {
       return { name, time: prayerTimes[name] };
     }
   }
+
+  // All of today's prayers have passed (post-Isha) — roll over to tomorrow's Fajr
+  if (latitude != null && longitude != null) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowTimes = calculatePrayerTimes(latitude, longitude, tomorrow);
+    return { name: 'Fajr', time: tomorrowTimes.Fajr };
+  }
+
   return null;
+};
+
+/**
+ * Returns tomorrow's Fajr time for a given location — used to anchor the
+ * night-time (Maghrib → Fajr) arc once today's Maghrib has passed.
+ */
+export const getTomorrowFajr = (latitude, longitude) => {
+  if (latitude == null || longitude == null) return null;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return calculatePrayerTimes(latitude, longitude, tomorrow).Fajr;
 };
 
 /**

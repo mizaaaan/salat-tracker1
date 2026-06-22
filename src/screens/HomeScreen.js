@@ -8,15 +8,16 @@ import * as Location from 'expo-location';
 import { useTheme } from '../constants/ThemeContext';
 import {
   calculatePrayerTimes, formatTime, getCountdown,
-  getNextPrayer, ALL_PRAYERS, TRACKABLE_PRAYERS, PRAYER_META,
+  getNextPrayer, getTomorrowFajr, ALL_PRAYERS, TRACKABLE_PRAYERS, PRAYER_META,
 } from '../utils/prayerTimes';
 import { getCompletedPrayers, togglePrayer } from '../utils/storage';
 import {
   requestNotificationPermission,
   schedulePrayerNotifications,
 } from '../utils/notifications';
-import PrayerCard       from '../components/PrayerCard';
-import NextPrayerBanner from '../components/NextPrayerBanner';
+import PrayerCard         from '../components/PrayerCard';
+import NextPrayerBanner   from '../components/NextPrayerBanner';
+import PrayerProgressBar  from '../components/PrayerProgressBar';
 
 // ── Hijri date calculator ────────────────────────────────────────────────────
 function getHijriDate(date = new Date()) {
@@ -71,8 +72,10 @@ export default function HomeScreen() {
   const [error,            setError]            = useState(null);
   const [nextPrayer,       setNextPrayer]       = useState(null);
   const [countdown,        setCountdown]        = useState('--:--:--');
+  const [tomorrowFajr,     setTomorrowFajr]     = useState(null);
 
-  const timesRef = useRef(null);
+  const timesRef  = useRef(null);
+  const coordsRef = useRef(null);
 
   // ── Load prayer times from GPS ─────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -86,9 +89,11 @@ export default function HomeScreen() {
       }
 
       const loc   = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      coordsRef.current = loc.coords;
       const times = calculatePrayerTimes(loc.coords.latitude, loc.coords.longitude);
       setPrayerTimes(times);
       timesRef.current = times;
+      setTomorrowFajr(getTomorrowFajr(loc.coords.latitude, loc.coords.longitude));
 
       const granted = await requestNotificationPermission();
       if (granted) await schedulePrayerNotifications(times);
@@ -109,7 +114,7 @@ export default function HomeScreen() {
     const tick = setInterval(() => {
       const times = timesRef.current;
       if (!times) return;
-      const next = getNextPrayer(times);
+      const next = getNextPrayer(times, coordsRef.current?.latitude, coordsRef.current?.longitude);
       setNextPrayer(next);
       if (next) setCountdown(getCountdown(next.time));
     }, 1000);
@@ -130,20 +135,12 @@ export default function HomeScreen() {
     return 'مساء الخير';
   };
 
-  const dateString = new Date().toLocaleDateString('en-US', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
-
   // Short format for banner top-right
   const shortDate = new Date().toLocaleDateString('en-US', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
   });
 
   const hijriDate = getHijriDate();
-
-  const completedCount = completedPrayers.filter(p =>
-    TRACKABLE_PRAYERS.includes(p)
-  ).length;
 
   // ── Render: loading ────────────────────────────────────────────────────────
   if (loading) {
@@ -180,7 +177,6 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.greeting}>{getGreeting()}</Text>
-          <Text style={styles.date}>{dateString}</Text>
         </View>
 
         {/* Next prayer banner — redesigned */}
@@ -194,35 +190,19 @@ export default function HomeScreen() {
             onLocationPress={load}
             hijriDate={hijriDate}
             gregorianDate={shortDate}
+            fajrTime={prayerTimes?.Fajr}
+            maghribTime={prayerTimes?.Maghrib}
+            nextFajrTime={tomorrowFajr}
           />
         )}
 
-        {/* Progress bar */}
-        <View style={styles.progressWrap}>
-          <Text style={styles.progressLabel}>
-            {completedCount} / {TRACKABLE_PRAYERS.length} prayers completed today
-          </Text>
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${(completedCount / TRACKABLE_PRAYERS.length) * 100}%` },
-              ]}
-            />
-          </View>
-          {/* Mini circles for each prayer */}
-          <View style={styles.dotRow}>
-            {TRACKABLE_PRAYERS.map((p) => (
-              <View
-                key={p}
-                style={[
-                  styles.miniDot,
-                  completedPrayers.includes(p) && styles.miniDotDone,
-                ]}
-              />
-            ))}
-          </View>
-        </View>
+        {/* Today's progress — tasbih-style bead strand */}
+        <PrayerProgressBar
+          prayers={TRACKABLE_PRAYERS}
+          completed={completedPrayers}
+          nextPrayer={nextPrayer?.name}
+          prayerMeta={PRAYER_META}
+        />
 
         {/* Prayer cards */}
         <View style={styles.list}>
@@ -297,43 +277,6 @@ const getStyles = (Colors) => StyleSheet.create({
     fontSize:  13,
     color:     Colors.textSecondary,
     marginTop: 4,
-  },
-
-  // Progress
-  progressWrap: {
-    marginHorizontal: 16,
-    marginVertical:   8,
-  },
-  progressLabel: {
-    color:        Colors.textSecondary,
-    fontSize:     12,
-    marginBottom: 8,
-    letterSpacing: 0.2,
-  },
-  progressTrack: {
-    height:          5,
-    backgroundColor: Colors.border,
-    borderRadius:    3,
-    overflow:        'hidden',
-  },
-  progressFill: {
-    height:          '100%',
-    backgroundColor: Colors.primary,
-    borderRadius:    3,
-  },
-  dotRow: {
-    flexDirection: 'row',
-    gap:           10,
-    marginTop:     8,
-  },
-  miniDot: {
-    width:           8,
-    height:          8,
-    borderRadius:    4,
-    backgroundColor: Colors.border,
-  },
-  miniDotDone: {
-    backgroundColor: Colors.primary,
   },
 
   // Prayer list
