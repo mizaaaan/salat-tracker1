@@ -12,16 +12,15 @@ const { width: SCREEN_W } = Dimensions.get('window');
 
 // ── Landscape card dimensions ─────────────────────────────────────────────────
 const CARD_W = SCREEN_W - 32;           // full width minus small margins
-const CARD_H = Math.round(CARD_W * 0.62); // ~62% of width → landscape 16:10 feel
 
 // ── Prayer background images ──────────────────────────────────────────────────
 const PRAYER_IMAGES = {
-  Fajr:    require('../../assets/prayers/fajr.png'),
-  Sunrise: require('../../assets/prayers/sunrise.png'),
-  Dhuhr:   require('../../assets/prayers/dhuhr.png'),
-  Asr:     require('../../assets/prayers/asr.png'),
-  Maghrib: require('../../assets/prayers/maghrib.png'),
-  Isha:    require('../../assets/prayers/isha.png'),
+  Fajr:    require('../../assets/prayers/fajr.jpg'),
+  Sunrise: require('../../assets/prayers/sunrise.jpg'),
+  Dhuhr:   require('../../assets/prayers/dhuhr.jpg'),
+  Asr:     require('../../assets/prayers/asr.jpg'),
+  Maghrib: require('../../assets/prayers/maghrib.jpg'),
+  Isha:    require('../../assets/prayers/isha.jpg'),
 };
 
 const PRAYER_TINT = {
@@ -33,16 +32,17 @@ const PRAYER_TINT = {
   Isha:    'rgba(5,   5,  18, 0.38)',
 };
 
-// ── Arc geometry — true semicircle (D-shape), equal radii ─────────────────────
+// ── Arc geometry — ELLIPTICAL arc that fits inside the card ───────────────────
 const ARC_W   = CARD_W - 48;
 const LEFT_X  = 10;
 const RIGHT_X = ARC_W - 10;
 
 const ARC_RX  = (RIGHT_X - LEFT_X) / 2;   // horizontal radius
-const ARC_RY  = ARC_RX;                   // equal radii → true circle, not an ellipse
+const ARC_RY  = ARC_RX;                    // perfect semicircle: vertical = horizontal radius
 const ARC_CX  = (LEFT_X + RIGHT_X) / 2;
 const BASE_Y  = ARC_RY + 8;
 const ARC_H   = BASE_Y + 8;
+const CARD_H  = ARC_H + 57;
 
 function arcPointAt(t) {
   const theta = Math.PI * (1 - t);
@@ -220,7 +220,11 @@ function PageDots({ prayerName }) {
 export default function NextPrayerBanner({
   name,
   time,
+  endTime,
   countdown,
+  currentPrayer,
+  endCountdown,
+  meta,
   hijriDate,
   gregorianDate,
   location,
@@ -279,7 +283,7 @@ export default function NextPrayerBanner({
           </View>
 
           {/* Small spacer */}
-          <View style={{ flex: 1 }} />
+          <View style={{ height: 10 }} />
 
           {/* ── Arc + Info block ──────────────────────────────────────────── */}
           <View style={styles.arcContainer}>
@@ -293,10 +297,23 @@ export default function NextPrayerBanner({
             <View style={styles.arcInfoOverlay}>
               <Text style={styles.hijriDate}>{hijriDate}</Text>
               <Text style={styles.prayerName}>{name}</Text>
+              {meta?.arabic ? (
+                <Text style={styles.arabicName}>{meta.arabic}</Text>
+              ) : null}
               <Text style={styles.bigTime}>{time}</Text>
-              <Text style={styles.countdown}>
-                will start in {naturalCountdown(countdown)}
-              </Text>
+              {/* Live end countdown — "Isha waqt ends in 02:26:15" */}
+              {currentPrayer ? (
+                <View style={styles.endCountdownRow}>
+                  <Text style={styles.endLabel}>
+                    {currentPrayer.name} waqt ends in{'  '}
+                  </Text>
+                  <Text style={styles.endTicker}>{endCountdown}</Text>
+                </View>
+              ) : (
+                <Text style={styles.countdown}>
+                  will start in {naturalCountdown(countdown)}
+                </Text>
+              )}
             </View>
 
           </View>
@@ -318,10 +335,10 @@ const styles = StyleSheet.create({
     marginVertical:   10,
     borderRadius:     20,
     shadowColor:      '#000',
-    shadowOffset:     { width: 0, height: 8 },
-    shadowOpacity:    0.40,
-    shadowRadius:     16,
-    elevation:        12,
+    shadowOffset:     { width: 0, height: 2 },
+    shadowOpacity:    0.15,
+    shadowRadius:     6,
+    elevation:        4,
   },
   card: {
     borderRadius: 20,
@@ -394,6 +411,15 @@ const styles = StyleSheet.create({
     marginBottom:  1,
   },
 
+  // Arabic name
+  arabicName: {
+    color:         'rgba(255,255,255,0.70)',
+    fontSize:      16,
+    fontWeight:    '600',
+    letterSpacing: 0.5,
+    marginBottom:  2,
+  },
+
   // Big time
   bigTime: {
     color:            '#fff',
@@ -412,6 +438,37 @@ const styles = StyleSheet.create({
     color:         'rgba(255,255,255,0.75)',
     fontSize:      12,
     letterSpacing: 0.2,
+  },
+
+  // End time (legacy, kept for fallback)
+  endTime: {
+    color:         'rgba(255,255,255,0.50)',
+    fontSize:      11,
+    letterSpacing: 0.2,
+    marginTop:     2,
+  },
+
+  // Live end countdown row — "Isha waqt ends in 02:26:15"
+  endCountdownRow: {
+    flexDirection:  'row',
+    alignItems:     'baseline',
+    marginTop:      2,
+  },
+  endLabel: {
+    color:         'rgba(255,255,255,0.65)',
+    fontSize:      11,
+    fontWeight:    '500',
+    letterSpacing: 0.3,
+  },
+  endTicker: {
+    color:          '#FFD700',
+    fontSize:       14,
+    fontWeight:     '800',
+    letterSpacing:  1.5,
+    fontVariant:    ['tabular-nums'],
+    textShadowColor:  'rgba(255,215,0,0.4)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 6,
   },
 
   // Page dots

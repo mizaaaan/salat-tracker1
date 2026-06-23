@@ -5,12 +5,12 @@ export const TRACKABLE_PRAYERS = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 export const ALL_PRAYERS       = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
 export const PRAYER_META = {
-  Fajr:    { icon: '🌅', arabic: 'الفجر',   color: '#7B8CDE' },
-  Sunrise: { icon: '🌄', arabic: 'الشروق',  color: '#F9A825' },
-  Dhuhr:   { icon: '☀️', arabic: 'الظهر',   color: '#FFD600' },
-  Asr:     { icon: '🌤️', arabic: 'العصر',  color: '#FF8F00' },
-  Maghrib: { icon: '🌇', arabic: 'المغرب',  color: '#FF7043' },
-  Isha:    { icon: '🌙', arabic: 'العشاء',  color: '#5C6BC0' },
+  Fajr:    { icon: '🌅', image: require('../../assets/prayers/fajr.png'),    arabic: 'الفجر',   color: '#7B8CDE' },
+  Sunrise: { icon: '🌄', image: require('../../assets/prayers/sunrise.png'), arabic: 'الشروق',  color: '#F9A825' },
+  Dhuhr:   { icon: '☀️', image: require('../../assets/prayers/dhuhr.png'),   arabic: 'الظهر',   color: '#FFD600' },
+  Asr:     { icon: '🌤️', image: require('../../assets/prayers/asr.png'),    arabic: 'العصر',   color: '#FF8F00' },
+  Maghrib: { icon: '🌇', image: require('../../assets/prayers/maghrib.png'), arabic: 'المغرب',  color: '#FF7043' },
+  Isha:    { icon: '🌙', image: require('../../assets/prayers/isha.png'),    arabic: 'العشاء',  color: '#5C6BC0' },
 };
 
 /**
@@ -101,4 +101,30 @@ export const getCountdown = (targetDate) => {
   const m = Math.floor((diff % 3_600_000) / 60_000);
   const s = Math.floor((diff % 60_000) / 1_000);
   return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
+};
+
+/**
+ * Returns the CURRENT active prayer and the Date when it ends.
+ * e.g. if it's 12:30 PM → { name: 'Dhuhr', endsAt: <Asr Date> }
+ *
+ * PRAYER_END_ORDER: each prayer ends when the next one begins.
+ * Isha ends at tomorrow's Fajr, so caller should pass tomorrowFajr.
+ */
+export const getCurrentPrayer = (prayerTimes, tomorrowFajr = null) => {
+  const now    = new Date();
+  const order  = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+  for (let i = order.length - 1; i >= 0; i--) {
+    const name      = order[i];
+    const startTime = prayerTimes[name];
+    if (startTime && now >= startTime) {
+      // Found the current prayer — its end time is the next prayer's start
+      const nextName    = order[i + 1];
+      const nextStart   = nextName ? prayerTimes[nextName] : null;
+      const endsAt      = nextStart ?? tomorrowFajr ?? null;
+      return { name, endsAt };
+    }
+  }
+  // Before Fajr — still in Isha from yesterday (or no data)
+  return null;
 };

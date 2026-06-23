@@ -1,76 +1,72 @@
-// Two full palettes — one per appearance mode.
-// Keep the SAME KEYS in both so every screen/component can stay
-// theme-agnostic and just ask for "Colors.primary", "Colors.card", etc.
+// Two full palettes — Dark Teal theme (inspired by Muslim Pro screenshot)
 
 export const darkColors = {
-  // Backgrounds
-  background:   '#080814',
-  card:         '#10102A',
-  cardLight:    '#18183A',
-  cardGlow:     '#1E1E45',
+  // Backgrounds — deep dark teal from screenshot hero area
+  background:   '#071C1E',   // near-black dark teal
+  card:         '#101C1E',   // dark teal card
+  cardLight:    '#162425',   // slightly lighter teal card
+  cardGlow:     '#1A2E30',   // teal glow
 
-  // Brand
-  primary:      '#C9A84C',   // Gold
+  // Brand — gold stays, pairs beautifully with dark teal
+  primary:      '#C9A84C',   // Gold (unchanged)
   primaryLight: '#E8C875',
   primaryDim:   '#C9A84C30',
 
-  // Accent
-  blue:         '#4FC3F7',
-  purple:       '#7C4DFF',
-  night:        '#1A2A5E',   // Deep blue for next-prayer card
+  // Accent — teal/olive from screenshot
+  blue:         '#1AB87A',   // teal-green (bottom nav active + "See More" color)
+  purple:       '#7A8830',   // olive (arc right-side tone)
+  night:        '#091A1C',   // deep teal for next-prayer card
 
   // Text
-  text:         '#F0F0FF',
-  textSecondary:'#8888AA',
-  textMuted:    '#555577',
+  text:         '#FFFFFF',   // pure white (screenshot text)
+  textSecondary:'#8AA4A6',   // muted teal-gray (prayer time secondary text)
+  textMuted:    '#3D5A5C',   // dark muted teal
 
   // UI
-  border:       '#2A2A50',
-  divider:      '#1E1E3A',
+  border:       '#1A3436',   // teal border
+  divider:      '#122628',   // dark teal divider
   overlay:      'rgba(0,0,0,0.6)',
 
   // Status
-  success:      '#4CAF50',
-  successDim:   '#4CAF5020',
+  success:      '#1AB87A',   // teal green (matches accent)
+  successDim:   '#1AB87A20',
   warning:      '#FF9800',
   danger:       '#F44336',
 };
 
 export const lightColors = {
-  // Backgrounds
-  background:   '#F7F7FB',
+  // Backgrounds — light teal/mint for light mode
+  background:   '#F0F8F8',   // soft teal white
   card:         '#FFFFFF',
-  cardLight:    '#F1F1F8',
-  cardGlow:     '#EAEAF6',
+  cardLight:    '#E8F5F5',   // very light teal tint
+  cardGlow:     '#D4ECEC',   // light teal glow
 
   // Brand
-  primary:      '#A9852E',   // Darker gold — keeps contrast on white
+  primary:      '#A9852E',   // Gold (unchanged)
   primaryLight: '#C9A84C',
   primaryDim:   '#A9852E22',
 
   // Accent
-  blue:         '#0288D1',
-  purple:       '#6A3FC9',
-  night:        '#E7ECFB',   // Soft blue card equivalent of "night" navy
+  blue:         '#0D8A68',   // darker teal for light mode readability
+  purple:       '#5A6A20',   // olive for light mode
+  night:        '#D8ECEC',   // soft teal card equivalent
 
   // Text
-  text:         '#15152A',
-  textSecondary:'#5C5C7A',
-  textMuted:    '#9A9AB2',
+  text:         '#071C1E',   // deep dark teal text
+  textSecondary:'#2E5055',   // muted teal text
+  textMuted:    '#5A7880',   // light teal muted
 
   // UI
-  border:       '#E3E2EE',
-  divider:      '#ECEBF6',
+  border:       '#B8D8DA',   // light teal border
+  divider:      '#D0E8E8',   // soft teal divider
   overlay:      'rgba(0,0,0,0.45)',
 
   // Status
-  success:      '#388E3C',
-  successDim:   '#4CAF5020',
+  success:      '#0D8A68',
+  successDim:   '#1AB87A20',
   warning:      '#F57C00',
   danger:       '#D32F2F',
 };
 
-// Back-compat: if any file still does `import { Colors } from '../constants/colors'`
-// instead of using the theme hook, it'll fall back to dark (the old default)
-// rather than crashing.
+// Back-compat fallback
 export const Colors = darkColors;
